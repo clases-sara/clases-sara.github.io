@@ -102,7 +102,7 @@ que implementar `enviarWhatsApp_()`.
 | Qué | Cómo |
 |---|---|
 | Clases confirmadas en el calendario de Sara | En *Clases – disponibilidad*, el mismo que ya usa y tiene compartido. Con el nombre del alumno y aviso una hora antes; se apuntan y se quitan solas |
-| Recordar a los alumnos de mañana | Sección *Mañana* en el panel, con un botón que va abriendo un WhatsApp por alumno |
+| Recordar a los alumnos de mañana | Hubo una sección *Mañana* en el panel con un botón que iba abriendo un WhatsApp por alumno. **Se quitó el 23 de agosto** a petición de Sara |
 | Si el calendario no responde | No se ofrece ninguna hora y se avisa a Sara por correo. Antes se ofrecían todas |
 | Archivado | `archivarAntiguas(meses)` mueve lo viejo a la pestaña *Historico* |
 
@@ -311,6 +311,20 @@ construye sobre su propia plantilla (ver [INSTALACION.md](INSTALACION.md)).
 borrar filas, combinar celdas y copiar formatos.
 
 **504 comprobaciones** en la lógica, **158** en el panel y **50** en el parte.
+
+## Lo que Sara pidió al ver el panel (23 de agosto)
+
+| Qué | Decisión | Por qué |
+|---|---|---|
+| Fuera la sección *Mañana* y el botón de ir avisando a los alumnos | Se quita entera: la sección, el código y la plantilla `recordatorio` del servidor | Sara no la usaba y ocupaba la mitad de la primera pantalla. Los alumnos ya reciben su confirmación y tienen la clase en su calendario |
+| El parte semanal | Plegado, como los demás ajustes | Se pide una vez a la semana; abierto estorbaba entre las clases y los ajustes |
+| **Horario extendido en días concretos** | Una franja ("de 08:00 a 20:30", editable) y una casilla por cada día a la vista, en *Tu disponibilidad*. Se guarda en Config como `horario_extendido`; `HorarioBase` no se toca | Hay semanas con más clases de lo normal. Cambiar el horario habitual para volver a cambiarlo después es un lío y se olvida: así son excepciones, no reglas, y las fechas pasadas se tiran solas |
+| Qué pasa en un día marcado | La jornada se **estira por los dos lados**: empieza a la hora del extendido y acaba a la suya, y el descanso del mediodía de ese día se mantiene. Un día que normalmente no trabaja (sábado) abre la franja entera | Un alumno reservando a la hora de comer sin que Sara lo haya decidido es peor que un hueco sin vender. Si un día quiere trabajar seguido, le basta con quitar el descanso de su horario habitual |
+| Una sola puerta para "¿a qué horas trabaja Sara tal día?" | `ventanasDelDia_()` en [07_Horario.gs](apps-script/07_Horario.gs). La disponibilidad del alumno, los ratos libres del panel y la validación de cada reserva pasan por ahí | Si cada sitio mirase el horario por su cuenta, un día extendido se ofrecería en la página y se rechazaría al reservar |
+| Una semana más a partir del jueves | `semana_extra_desde` en Config (1 = lunes … 7 = domingo; vacío = nunca). Con `4`, de jueves a domingo se ve una semana más que de lunes a miércoles | Los exámenes son los miércoles: quien suspende quiere coger la semana siguiente ese mismo día. Es opcional y no cambia nada hasta que se rellena; a día de hoy la hoja tiene `semanas_vista` = 3, así que ya se ven dos semanas por delante todos los días |
+| Los textos del panel en el móvil | Las filas que llevaban tres datos en un renglón (semanas, días de la agenda, ratos libres) pueden partirse en dos líneas por debajo de 400 px, y la cabecera deja de pelearse con los botones | En un móvil normal el resumen de la semana salía cortado o montado encima de lo libre |
+
+**550 comprobaciones** en la lógica, **189** en el panel y **52** en el parte.
 
 ## Pendiente
 

@@ -89,6 +89,8 @@ function enrutar_(accion, datos) {
         return exigirAdmin_(datos.t) || guardarConfigPanel_(datos);
       case 'guardar_horario':
         return exigirAdmin_(datos.t) || guardarHorario(datos.horario);
+      case 'guardar_horario_extendido':
+        return exigirAdmin_(datos.t) || guardarHorarioExtendido(datos.horario_extendido);
       case 'diagnostico':
         return exigirAdmin_(datos.t) || { ok: true, informe: diagnostico() };
 
@@ -277,7 +279,7 @@ function cambiarClaveDelPanel() {
 
 function guardarConfigPanel_(datos) {
   var permitidas = ['telefono_sara', 'url_publica', 'url_api', 'antelacion_minima_horas',
-                    'semanas_vista', 'nombre_sitio', 'nombre_panel', 'avisar_por_email',
+                    'semanas_vista', 'semana_extra_desde', 'nombre_sitio', 'nombre_panel', 'avisar_por_email',
                     'separacion_minima_minutos', 'autoescuelas'];
   permitidas.forEach(function (clave) {
     if (datos[clave] === undefined) return;

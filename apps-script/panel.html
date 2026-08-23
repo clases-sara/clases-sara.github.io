@@ -43,9 +43,15 @@
   header{position:sticky;top:0;z-index:10;background:var(--fondo);
          display:flex;align-items:center;justify-content:space-between;gap:.75rem;
          padding:1rem 0 .75rem;border-bottom:1px solid var(--borde);margin-bottom:1rem}
+  header>div{min-width:0}
   header h1{font-size:1.125rem;margin:0;font-weight:680;letter-spacing:-.01em}
   .cabecera-botones{display:flex;gap:.375rem;flex:0 0 auto}
   .sub{color:var(--suave);font-size:.8125rem;margin:.125rem 0 0}
+  /* En un movil estrecho el titulo se partia en dos para dejar sitio a los botones */
+  @media(max-width:24rem){
+    header h1{font-size:1rem}
+    header .b-compacto{padding:.375rem .5625rem}
+  }
 
   .seccion{margin-top:1.75rem}
   .seccion h2{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;
@@ -163,6 +169,18 @@
                     border-radius:9px;width:100%;background:#fff;color:var(--texto)}
   .dia-edicion.cerrado .dia-rangos{opacity:.4;pointer-events:none}
 
+  /* Los días con horario extendido: una fila por día a la vista, con su casilla */
+  #dias-extendidos{margin-top:.75rem;border:1px solid var(--borde);border-radius:11px;overflow:hidden}
+  .dia-ext{display:flex;align-items:center;gap:.625rem;padding:.5rem .75rem;margin:0;
+           font-size:.9375rem;font-weight:500;color:var(--texto);cursor:pointer;
+           -webkit-tap-highlight-color:transparent}
+  .dia-ext + .dia-ext{border-top:1px solid var(--borde)}
+  .dia-ext input{width:1.25rem;height:1.25rem;accent-color:var(--acento);flex:none}
+  .dia-ext.marcado{background:var(--acento-suave);font-weight:650}
+  .dia-ext-nombre{flex:1;display:block}
+  .dia-ext-nombre::first-letter{text-transform:uppercase}
+  .dia-ext-pista{font-size:.6875rem;color:var(--suave);text-transform:none;white-space:nowrap}
+
   #cargando{text-align:center;color:var(--suave);padding:3rem 1rem}
   .girador{width:1.75rem;height:1.75rem;margin:0 auto .75rem;border:2.5px solid var(--borde);
            border-top-color:var(--acento);border-radius:50%;animation:girar .7s linear infinite}
@@ -181,8 +199,14 @@
     color:var(--suave);margin:1.125rem 0 .375rem .25rem;
   }
   .dia-agenda:first-child{margin-top:0}
-  .dia-agenda-clases{font-weight:600;letter-spacing:.04em;text-transform:none;color:var(--suave)}
+  /* El nombre del dia no se parte: si falta sitio, son las horas las que pasan de linea */
+  .dia-agenda-nombre{flex:none;white-space:nowrap}
+  .dia-agenda-clases{
+    flex:1 1 auto;min-width:0;
+    font-weight:600;letter-spacing:.04em;text-transform:none;color:var(--suave);
+  }
   .dia-agenda-clases::before{content:"·";margin-right:.5rem}
+  .sinpartir{white-space:nowrap}
   .dia-libre{
     margin-left:auto;flex:none;
     background:var(--alertafondo);color:var(--alerta);
@@ -192,18 +216,31 @@
   }
   .dia-agenda.con-libre .dia-agenda-nombre{color:var(--alerta)}
 
-  /* Las semanas, resumidas: horas de clase y horas libres de cada una */
+  /*
+   * Las semanas, resumidas: horas de clase y horas libres de cada una.
+   *
+   * En un movil son tres datos para 330 px: el nombre se partia en cuatro renglones
+   * ("La / semana / que / viene") y las horas se montaban encima de lo libre. Por
+   * debajo de 27 rem el nombre y lo libre van en la primera linea y las horas de
+   * trabajo en la segunda; con sitio, todo en una.
+   */
   .semanas{
     background:var(--tarjeta);border:1px solid var(--borde);border-radius:11px;
     margin-bottom:.625rem;overflow:hidden;
   }
   .semana{
-    display:flex;align-items:center;gap:.5rem;padding:.5rem .625rem;font-size:.8125rem;
+    display:grid;grid-template-columns:1fr auto;column-gap:.5rem;row-gap:.125rem;
+    align-items:center;padding:.5rem .625rem;font-size:.8125rem;
   }
   .semana + .semana{border-top:1px solid var(--borde)}
-  .semana-nombre{font-weight:650;flex:1;min-width:0}
-  .semana-clases{color:var(--suave);font-variant-numeric:tabular-nums;white-space:nowrap}
-  .semana .dia-libre{margin-left:0}
+  .semana-nombre{font-weight:650;min-width:0}
+  .semana-clases{color:var(--suave);font-variant-numeric:tabular-nums;grid-column:1/-1}
+  .semana .dia-libre{margin-left:0;grid-column:2;grid-row:1}
+  @media(min-width:27rem){
+    .semana{grid-template-columns:auto 1fr auto}
+    .semana-clases{grid-column:2;text-align:right;white-space:nowrap}
+    .semana .dia-libre{grid-column:3}
+  }
 
   .clase{
     background:var(--tarjeta);border:1px solid var(--borde);border-radius:11px;
@@ -235,11 +272,16 @@
 
   .clase-carril{width:3px;height:2.125rem;border-radius:2px;background:var(--color-esc,var(--borde))}
 
-  /* El nombre se lleva lo que sobre y se corta con puntos suspensivos si no cabe */
+  /*
+   * El nombre se lleva lo que sobre. En un movil "MARC PUJOL ALBARRACIN" no cabe en
+   * un renglon: se le dejan dos, que es lo que ya ocupa la hora de al lado, y solo
+   * despues se corta con puntos suspensivos.
+   */
   .clase-nombre{
     min-width:0;
-    font-size:.9375rem;font-weight:650;line-height:1.25;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    font-size:.9375rem;font-weight:650;line-height:1.2;
+    overflow:hidden;text-overflow:ellipsis;overflow-wrap:anywhere;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
   }
   .clase-tipo{
     font-size:.75rem;color:var(--suave);line-height:1.25;
@@ -265,7 +307,8 @@
    * calendario en ese dia, para taparlo o apuntar ahi a quien Sara llame.
    */
   .hueco{
-    display:flex;align-items:center;justify-content:flex-start;gap:.625rem;width:100%;
+    display:flex;align-items:center;justify-content:flex-start;gap:.375rem .625rem;width:100%;
+    flex-wrap:wrap;
     min-height:0;font:inherit;font-size:.75rem;font-weight:500;color:var(--alerta);
     font-variant-numeric:tabular-nums;
     background:var(--alertafondo);border:1px dashed #f0c36d;border-radius:9px;
@@ -393,18 +436,6 @@
       </div>
     </section>
 
-    <section class="seccion" id="seccion-manana" style="display:none">
-      <h2>Mañana <span class="cuenta" id="n-manana">0</span></h2>
-      <div class="tarjeta">
-        <div id="lista-manana" style="font-size:.9375rem"></div>
-        <div class="acciones">
-          <a class="boton b-wa" id="btn-recordar" target="_blank" rel="noopener" href="#"
-             onclick="avanzarRecordatorio()">Recordar</a>
-        </div>
-        <p class="ayuda" id="pista-recordar">Se abre un WhatsApp por alumno. Vuelve aquí y pulsa otra vez.</p>
-      </div>
-    </section>
-
     <section class="seccion">
       <h2>Próximas clases <span class="cuenta" id="n-proximas">0</span></h2>
       <!-- Horas de clase y horas libres de cada semana, de un vistazo -->
@@ -464,13 +495,46 @@
                   onclick="guardarHorarioPanel()">Guardar horarios</button>
         </div>
       </details>
+
+      <!--
+        Días sueltos con la jornada alargada. No es la regla: es una franja que Sara
+        enciende en los días que le convenga, y el horario habitual se queda como está.
+        Solo sale si el servidor ya lo entiende.
+      -->
+      <details id="bloque-extendido" style="margin-top:.75rem;display:none">
+        <summary>Horario extendido, en días concretos</summary>
+        <p class="ayuda" style="margin-top:.5rem">
+          Para las semanas con más clases. Marca los días en los que quieres alargar
+          la jornada: ese día empiezas y acabas a estas horas, y tu descanso del
+          mediodía se mantiene. Tu horario de siempre no cambia.
+        </p>
+
+        <div class="dia-rangos" style="margin-top:.75rem">
+          <span>De</span>
+          <input type="time" id="ext-desde" value="08:00">
+          <span>a</span>
+          <input type="time" id="ext-hasta" value="20:30">
+        </div>
+
+        <div id="dias-extendidos"></div>
+
+        <div class="acciones">
+          <button class="b-principal" id="btn-guardar-extendido"
+                  onclick="guardarHorarioExtendidoPanel()">Guardar días</button>
+        </div>
+      </details>
     </section>
 
-    <!-- Solo sale cuando el generador del parte está instalado (url_partes en Config) -->
+    <!--
+      Solo sale cuando el generador del parte está instalado (url_partes en Config).
+      Va plegado, como los demás ajustes: se pide una vez a la semana y abierto
+      ocupaba media pantalla entre las clases y los ajustes.
+    -->
     <section class="seccion" id="seccion-parte" style="display:none">
       <h2>Parte semanal</h2>
-      <div class="tarjeta">
-        <p class="ayuda" style="margin:0 0 .75rem">
+      <details>
+        <summary>Pedir el Excel para la empresa</summary>
+        <p class="ayuda" style="margin-top:.5rem">
           El Excel para la empresa sale solo cada sábado por la mañana y te llega por
           correo. Si corriges algo (un permiso, campo o circulación), vuelve a pedirlo aquí
           y el archivo se sustituye.
@@ -480,7 +544,7 @@
           <a class="boton b-neutro" id="btn-parte-pasada" target="_blank" rel="noopener" href="#">Semana pasada</a>
           <a class="boton b-neutro" id="btn-parte-proxima" target="_blank" rel="noopener" href="#">Semana que viene</a>
         </div>
-      </div>
+      </details>
     </section>
 
     <section class="seccion">
@@ -692,12 +756,12 @@ function pintar(resp) {
   // Los exámenes del calendario: no son clases, pero son horas de trabajo y van en la agenda
   var examenes = (resp.libres && resp.libres.examenes) ? resp.libres.examenes : [];
 
-  pintarManana(proximas);
   pintarPendientes('lista-pendientes', pendientes, 'Ninguna solicitud pendiente.');
   pintarResumenSemanas(proximas.concat(dadasHoy), libres, examenes);
   pintarAgenda('lista-proximas', proximas, 'No tienes clases confirmadas.', libres, dadasHoy, examenes);
 
   pintarEditorHorario(resp.config.horario);
+  pintarHorarioExtendido(resp.config.horario_extendido, resp.config.dias_vista);
   pintarParte(resp.config.url_partes);
 
   // Si esta fecha no es la del último código pegado, falta publicar la nueva versión
@@ -706,84 +770,6 @@ function pintar(resp) {
   el('cfg-telefono').value = resp.config.telefono_sara || '';
   el('cfg-url').value = resp.config.url_publica || '';
   el('cfg-antelacion').value = resp.config.antelacion_minima_horas || 6;
-}
-
-/**
- * Los alumnos que tienen clase manana, para recordarselo de una tacada.
- *
- * Los moviles no dejan abrir varios WhatsApp seguidos de un solo toque, asi que el
- * boton va uno a uno: se abre el del primero, Sara vuelve y el boton ya apunta al
- * siguiente. Con tres alumnos son tres toques, no tres busquedas en la agenda.
- */
-var MANANA = { pendientes: [], indice: 0 };
-
-function pintarManana(clases) {
-  var ahora = new Date();
-  var fecha = fechaISO(new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() + 1));
-
-  MANANA = { pendientes: [], indice: 0 };
-
-  /*
-   * Aquí sí se juntan por alumno: es un WhatsApp por persona, con todas sus clases
-   * de mañana. La agenda llega en orden de reloj, así que se agrupa al vuelo.
-   */
-  var porAlumno = {};
-  (clases || []).forEach(function (r) {
-    if (r.fecha !== fecha) return;
-    var quien = r.telefono || ('n:' + String(r.nombre || '').toLowerCase());
-
-    if (!porAlumno[quien]) {
-      porAlumno[quien] = {
-        grupo: { nombre: r.nombre, telefono: r.telefono, clave: 'man-' + quien },
-        reservas: []
-      };
-      MANANA.pendientes.push(porAlumno[quien]);
-    }
-    porAlumno[quien].reservas.push(r);
-  });
-
-  var seccion = el('seccion-manana');
-  if (!MANANA.pendientes.length) { seccion.style.display = 'none'; return; }
-
-  seccion.style.display = 'block';
-  el('n-manana').textContent = MANANA.pendientes.length;
-  el('lista-manana').innerHTML = MANANA.pendientes.map(function (p) {
-    return '<div>' + escapar(p.grupo.nombre) + ' · ' +
-           p.reservas.map(function (r) { return r.hora_inicio; }).join(', ') + '</div>';
-  }).join('');
-
-  refrescarBotonRecordar();
-}
-
-/** Se llama al tocar el boton: el enlace se abre solo, aqui pasamos al siguiente. */
-function avanzarRecordatorio() {
-  if (MANANA.indice >= MANANA.pendientes.length) return;
-
-  var avisados = MANANA.pendientes[MANANA.indice].reservas.map(function (r) { return r.id; });
-  google.script.run.apiPanel('marcar_avisado', conClave({ ids: avisados }));
-
-  MANANA.indice++;
-  // Un respiro, para que el enlace se abra antes de cambiar debajo del dedo
-  setTimeout(refrescarBotonRecordar, 400);
-}
-
-function refrescarBotonRecordar() {
-  var boton = el('btn-recordar');
-  var pista = el('pista-recordar');
-  var total = MANANA.pendientes.length;
-
-  if (MANANA.indice >= total) {
-    boton.textContent = 'Avisados los ' + total;
-    boton.href = '#';
-    pista.textContent = 'Ya has avisado a todos.';
-    return;
-  }
-
-  var siguiente = MANANA.pendientes[MANANA.indice];
-  boton.textContent = 'Avisar a ' + siguiente.grupo.nombre.split(' ')[0] +
-                      ' (' + (MANANA.indice + 1) + ' de ' + total + ')';
-  boton.href = urlWhatsApp(siguiente.reservas, 'recordatorio', '');
-  pista.textContent = 'Se abre un WhatsApp por alumno. Vuelve aquí y pulsa otra vez.';
 }
 
 /** Los botones del parte semanal, si el generador está instalado. */
@@ -882,6 +868,16 @@ function textoDeTrabajo(minutosClase, minutosExamen) {
   if (!minutosExamen) return textoHoras(minutosClase) + ' de clase';
   return textoHoras(minutosClase + minutosExamen) + ' de trabajo (' +
          textoHoras(minutosExamen) + ' examen)';
+}
+
+/**
+ * Lo mismo, para pintarlo: en un movil estrecho la linea se parte, y mejor que lo
+ * haga delante del parentesis ("4 h 15 de trabajo" / "(2 h 45 examen)") que por
+ * dentro ("(2 h 45" / "examen)").
+ */
+function htmlDeTrabajo(minutosClase, minutosExamen) {
+  return escapar(textoDeTrabajo(minutosClase, minutosExamen))
+    .replace(/\(([^)]*)\)/, '<span class="sinpartir">($1)</span>');
 }
 
 /** 'YYYY-MM-DD' de una fecha del navegador. */
@@ -1026,7 +1022,7 @@ function pintarResumenSemanas(clases, libres, examenes) {
                  'Semana del ' + diaCorto(clave).replace(/^\S+\s/, '');
     return '<div class="semana">' +
              '<span class="semana-nombre">' + escapar(nombre) + '</span>' +
-             '<span class="semana-clases">' + textoDeTrabajo(sem.clase, sem.examen) + '</span>' +
+             '<span class="semana-clases">' + htmlDeTrabajo(sem.clase, sem.examen) + '</span>' +
              (sem.libre ? '<span class="dia-libre">' + textoHoras(sem.libre) + ' libres</span>' : '') +
            '</div>';
   }).join('') + '</div>';
@@ -1086,7 +1082,7 @@ function pintarAgenda(destino, clases, textoVacio, libres, dadasHoy, examenes) {
 
     html += '<div class="dia-agenda' + (minutosLibres ? ' con-libre' : '') + '">' +
               '<span class="dia-agenda-nombre">' + escapar(diaCorto(fecha)) + '</span>' +
-              '<span class="dia-agenda-clases">' + textoDeTrabajo(minutosClase, minutosExamen) + '</span>' +
+              '<span class="dia-agenda-clases">' + htmlDeTrabajo(minutosClase, minutosExamen) + '</span>' +
               (minutosLibres
                 ? '<span class="dia-libre">' + textoHoras(minutosLibres) + ' libres</span>'
                 : '') +
@@ -1845,6 +1841,109 @@ function guardarHorarioPanel() {
       avisar('Error: ' + e.message);
     })
     .apiPanel('guardar_horario', conClave({ horario: horario }));
+}
+
+// --- Horario extendido: días sueltos con la jornada alargada ------------------
+
+/*
+ * Una casilla por cada día que Sara tiene a la vista (lo que queda de esta semana y
+ * la que viene, igual que sus alumnos). Los fines de semana también salen: un sábado
+ * con horario extendido es un sábado de trabajo, y eso es justo lo que esto permite.
+ *
+ * Si el servidor es más viejo y no manda el extendido, el bloque no aparece.
+ */
+var EXTENDIDO = { fechas: [] };
+
+function pintarHorarioExtendido(extendido, diasVista) {
+  var bloque = el('bloque-extendido');
+  if (!extendido || !extendido.tramo) { bloque.style.display = 'none'; return; }
+
+  bloque.style.display = 'block';
+  el('ext-desde').value = extendido.tramo[0] || '08:00';
+  el('ext-hasta').value = extendido.tramo[1] || '20:30';
+
+  var marcadas = {};
+  (extendido.fechas || []).forEach(function (f) { marcadas[f] = true; });
+
+  var hoy = new Date();
+  var fechas = [];
+  var total = Number(diasVista) || 14;
+  for (var i = 0; i < total; i++) {
+    fechas.push(fechaISO(new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + i)));
+  }
+  // Un día marcado que se haya quedado fuera de la vista se sigue enseñando, para
+  // poder quitarlo
+  Object.keys(marcadas).forEach(function (f) {
+    if (fechas.indexOf(f) === -1 && f >= fechas[0]) fechas.push(f);
+  });
+  fechas.sort();
+
+  var horario = (ESTADO.datos && ESTADO.datos.config.horario) || null;
+  EXTENDIDO = { fechas: fechas };
+
+  el('dias-extendidos').innerHTML = fechas.map(function (f) {
+    var d = fechaDesdeISO(f);
+    var diaSemana = d.getDay() === 0 ? 7 : d.getDay();
+    var normal = horario && horario.dias && (horario.dias[diaSemana] || horario.dias[String(diaSemana)]);
+    var cerrado = normal && !normal.activo;
+
+    return '<label class="dia-ext' + (marcadas[f] ? ' marcado' : '') + '" id="ext-fila-' + f + '">' +
+             '<input type="checkbox" id="ext-' + f + '"' + (marcadas[f] ? ' checked' : '') +
+                   ' onchange="alternarDiaExtendido(\'' + f + '\')">' +
+             '<span class="dia-ext-nombre">' + escapar(diaCorto(f)) + '</span>' +
+             (cerrado ? '<span class="dia-ext-pista">cerrado de normal</span>' : '') +
+           '</label>';
+  }).join('');
+}
+
+function alternarDiaExtendido(fecha) {
+  var fila = el('ext-fila-' + fecha);
+  var casilla = el('ext-' + fecha);
+  if (fila && casilla) fila.classList.toggle('marcado', casilla.checked);
+}
+
+function guardarHorarioExtendidoPanel() {
+  var boton = el('btn-guardar-extendido');
+  var fechas = EXTENDIDO.fechas.filter(function (f) {
+    var casilla = el('ext-' + f);
+    return casilla && casilla.checked;
+  });
+
+  boton.disabled = true;
+  boton.textContent = 'Guardando…';
+
+  function devolverBoton(texto) {
+    boton.textContent = texto;
+    setTimeout(function () {
+      boton.disabled = false;
+      boton.textContent = 'Guardar días';
+    }, 2500);
+  }
+
+  google.script.run
+    .withSuccessHandler(function (resp) {
+      if (!resp || !resp.ok) {
+        devolverBoton('No se pudo guardar');
+        avisar(resp && resp.error ? resp.error : 'No se pudo guardar');
+        return;
+      }
+      devolverBoton('✓ Guardado');
+      avisar(fechas.length
+        ? 'Horario extendido en ' + fechas.length + (fechas.length === 1 ? ' día' : ' días')
+        : 'Sin días con horario extendido');
+      // Los ratos libres de la agenda cambian con esto: se vuelven a pedir
+      cargar(false, true);
+    })
+    .withFailureHandler(function (e) {
+      devolverBoton('No se pudo guardar');
+      avisar('Error: ' + e.message);
+    })
+    .apiPanel('guardar_horario_extendido', conClave({
+      horario_extendido: {
+        tramo: [el('ext-desde').value, el('ext-hasta').value],
+        fechas: fechas
+      }
+    }));
 }
 
 /**

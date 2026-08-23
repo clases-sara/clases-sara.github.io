@@ -485,6 +485,49 @@ comprobar('solo esta semana y la siguiente', Object.keys(semanasVistas).length <
 const ultimoDia = disp.dias[disp.dias.length - 1];
 comprobar('no se pasa del domingo que viene', ultimoDia.semana <= 1, ultimoDia.fecha);
 
+console.log('== Una semana mas a partir del jueves ==');
+
+/*
+ * Los examenes son los miercoles. Quien suspende quiere coger clases de la semana
+ * siguiente ese mismo dia, y con dos semanas a la vista desde el lunes la que le
+ * interesa puede no estar abierta. semana_extra_desde = 4 abre una mas de jueves a
+ * domingo, y de lunes a miercoles se sigue viendo lo de siempre.
+ */
+const diasNormales = diasQueSeOfrecen_();
+const hoySemana = diaSemanaIso(ahora());
+
+setConfig('semana_extra_desde', String(hoySemana));
+limpiarCache();
+comprobar('si hoy es el dia marcado, se ven siete dias mas',
+          diasQueSeOfrecen_() === diasNormales + 7, diasQueSeOfrecen_() + ' vs ' + diasNormales);
+comprobar('y el ultimo dia ofrecido se mueve con ellos',
+          ultimoDiaOfrecido_() === Utilities.formatDate(sumarDias(ahora(), diasNormales + 6), TZ, 'yyyy-MM-dd'),
+          ultimoDiaOfrecido_());
+const dispExtra = obtenerDisponibilidad();
+comprobar('y la pagina del alumno ofrece esa semana de mas',
+          dispExtra.dias.some(d => d.semana === 2), JSON.stringify(dispExtra.dias.map(d => d.semana)));
+
+if (hoySemana < 7) {
+  setConfig('semana_extra_desde', String(hoySemana + 1));
+  limpiarCache();
+  comprobar('si el dia marcado es manana, todavia no',
+            diasQueSeOfrecen_() === diasNormales, diasQueSeOfrecen_() + ' vs ' + diasNormales);
+}
+if (hoySemana > 1) {
+  setConfig('semana_extra_desde', '1');
+  limpiarCache();
+  comprobar('y si fue el lunes, ya esta abierta el resto de la semana',
+            diasQueSeOfrecen_() === diasNormales + 7, diasQueSeOfrecen_() + ' vs ' + diasNormales);
+}
+
+setConfig('semana_extra_desde', '');
+limpiarCache();
+comprobar('vacio, como viene de serie, no cambia nada', diasQueSeOfrecen_() === diasNormales);
+comprobar('y un valor raro tampoco',
+          (setConfig('semana_extra_desde', '9'), limpiarCache(), diasQueSeOfrecen_() === diasNormales));
+setConfig('semana_extra_desde', '');
+limpiarCache();
+
 console.log('== Varias horas de una vez ==');
 limpiarCache();
 disp = obtenerDisponibilidad();
@@ -2068,6 +2111,154 @@ comprobar('sin calendario, el panel se abre igual y lo dice',
           panelSinCal.ok && panelSinCal.libres.sin_calendario === true && panelSinCal.libres.dias.length === 0,
           JSON.stringify(panelSinCal.libres));
 CalendarApp.getCalendarById = calBueno;
+limpiarCache();
+
+console.log('== Horario extendido, en dias concretos ==');
+
+/*
+ * Hay semanas con mas clases de lo normal: Sara quiere empezar a las ocho y acabar a
+ * las ocho y media, pero solo esos dias. No es su horario de siempre, asi que se
+ * enciende dia a dia y el habitual no se toca.
+ */
+bancoLimpio();
+EVENTOS = [];
+guardarHorario(HORARIO_POR_DEFECTO);
+limpiarCache();
+
+const extVacio = leerHorarioExtendido();
+comprobar('de serie va de 08:00 a 20:30 y sin ningun dia',
+          extVacio.tramo[0] === '08:00' && extVacio.tramo[1] === '20:30' && extVacio.fechas.length === 0,
+          JSON.stringify(extVacio));
+
+// El lunes y el sabado de la semana que viene: siempre estan a la vista
+const lunesExt = (function () {
+  let d = sumarDias(ahora(), 1);
+  while (diaSemanaIso(d) !== 1) d = sumarDias(d, 1);
+  return Utilities.formatDate(d, TZ, 'yyyy-MM-dd');
+})();
+const martesExt = Utilities.formatDate(sumarDias(aDate(lunesExt, '00:00'), 1), TZ, 'yyyy-MM-dd');
+const sabadoExt = Utilities.formatDate(sumarDias(aDate(lunesExt, '00:00'), 5), TZ, 'yyyy-MM-dd');
+
+const extGuardado = guardarHorarioExtendido({ tramo: ['08:00', '20:30'],
+                                             fechas: [sabadoExt, lunesExt, lunesExt, '2020-01-01'] });
+comprobar('se guarda', extGuardado.ok === true, JSON.stringify(extGuardado));
+comprobar('sin repetidos, sin fechas pasadas y en orden',
+          extGuardado.horario_extendido.fechas.join(',') === lunesExt + ',' + sabadoExt,
+          extGuardado.horario_extendido.fechas.join(','));
+limpiarCache();
+
+const baseExt = leerHorarioBase_();
+const lunesVentanas = ventanasDelDia_(baseExt, lunesExt);
+comprobar('el lunes marcado empieza a las 08:00 y acaba a las 20:30',
+          lunesVentanas.length === 2 &&
+          lunesVentanas[0].hora_inicio === '08:00' && lunesVentanas[1].hora_fin === '20:30',
+          JSON.stringify(lunesVentanas));
+comprobar('y conserva el descanso del mediodia',
+          lunesVentanas[0].hora_fin === '13:00' && lunesVentanas[1].hora_inicio === '14:00',
+          JSON.stringify(lunesVentanas));
+comprobar('el martes, sin marcar, sigue igual',
+          JSON.stringify(ventanasDelDia_(baseExt, martesExt)) === JSON.stringify(baseExt[2]),
+          JSON.stringify(ventanasDelDia_(baseExt, martesExt)));
+comprobar('un sabado marcado abre la franja entera',
+          JSON.stringify(ventanasDelDia_(baseExt, sabadoExt)) ===
+          JSON.stringify([{ hora_inicio: '08:00', hora_fin: '20:30' }]),
+          JSON.stringify(ventanasDelDia_(baseExt, sabadoExt)));
+comprobar('y el horario habitual no se ha tocado',
+          baseExt[1][0].hora_inicio === '08:30' && baseExt[1][1].hora_fin === '18:30' && !baseExt[6]);
+
+// Lo que ve el alumno ese lunes: una clase mas por la manana y una mas por la tarde
+const ofertasLunesExt = ofertasDelDia_(lunesExt, lunesVentanas, [], {}, reglasDeHuecos_(''));
+comprobar('un lunes extendido da 7 clases de hora y media en vez de 6',
+          ofertasLunesExt.length === 7 && ofertasLunesExt[0].hora_inicio === '08:00' &&
+          ofertasLunesExt[ofertasLunesExt.length - 1].hora_fin === '20:00',
+          JSON.stringify(ofertasLunesExt.map(o => o.hora_inicio)));
+
+limpiarCache();
+const dispExt = obtenerDisponibilidad();
+const lunesPublico = dispExt.dias.filter(d => d.fecha === lunesExt)[0];
+const sabadoPublico = dispExt.dias.filter(d => d.fecha === sabadoExt)[0];
+comprobar('la pagina del alumno ofrece las 08:00 ese lunes',
+          !!lunesPublico && lunesPublico.franjas.some(f => f.hora_inicio === '08:00'),
+          JSON.stringify(lunesPublico && lunesPublico.franjas.map(f => f.hora_inicio)));
+comprobar('y una clase que acaba a las 20:00',
+          !!lunesPublico && lunesPublico.franjas.some(f => f.hora_fin === '20:00'));
+comprobar('y el sabado marcado sale, cuando de normal no sale ninguno',
+          !!sabadoPublico && sabadoPublico.franjas.length > 0,
+          JSON.stringify(sabadoPublico));
+comprobar('el martes no ofrece nada antes de las 08:30 ni despues de las 18:30',
+          dispExt.dias.filter(d => d.fecha === martesExt).every(d =>
+            d.franjas.every(f => f.hora_inicio >= '08:30' && f.hora_fin <= '18:30')));
+
+// Y la reserva se valida con lo mismo que se ofrecio
+const ctxExt = crearContexto_([lunesExt, martesExt, sabadoExt]);
+comprobar('se puede pedir la clase de las 18:30 del lunes extendido',
+          huecoLibreEn_(ctxExt, lunesExt, '18:30').ok === true,
+          JSON.stringify(huecoLibreEn_(ctxExt, lunesExt, '18:30')));
+comprobar('pero no la de las 18:30 del martes normal',
+          huecoLibreEn_(ctxExt, martesExt, '18:30').ok === false);
+comprobar('ni nada el domingo', huecoLibreEn_(ctxExt,
+          Utilities.formatDate(sumarDias(aDate(sabadoExt, '00:00'), 1), TZ, 'yyyy-MM-dd'), '10:00').ok === false);
+const pedidaExt = crearReserva({ nombre: 'Tarde Larga', telefono: '672900', escuela: 'Andorra',
+                                 huecos: [{ fecha: lunesExt, hora_inicio: '18:30' }] });
+comprobar('y la reserva entra', pedidaExt.ok === true, JSON.stringify(pedidaExt).substring(0, 120));
+
+// El panel de Sara lo sabe todo: los dias marcados, cuantos tiene a la vista y el rato libre largo
+limpiarCache();
+const panelExt = datosPanel();
+comprobar('el panel recibe los dias marcados y la franja',
+          panelExt.config.horario_extendido.fechas.indexOf(lunesExt) !== -1 &&
+          panelExt.config.horario_extendido.tramo[1] === '20:30',
+          JSON.stringify(panelExt.config.horario_extendido));
+comprobar('y cuantos dias tiene a la vista para elegir',
+          panelExt.config.dias_vista === diasQueSeOfrecen_() && panelExt.config.dias_vista > 0,
+          panelExt.config.dias_vista);
+const libreLunesExt = panelExt.libres.dias.filter(d => d.fecha === lunesExt)[0];
+comprobar('el rato libre del lunes llega hasta la clase de las 18:30 y el dia va señalado',
+          !!libreLunesExt && libreLunesExt.extendido === true &&
+          libreLunesExt.tramos[0].hora_inicio === '08:00' &&
+          libreLunesExt.tramos.some(t => t.hora_fin === '18:30'),
+          JSON.stringify(libreLunesExt));
+comprobar('y el martes no va señalado',
+          panelExt.libres.dias.filter(d => d.fecha === martesExt).every(d => !d.extendido));
+
+// El diagnostico no da por suelta una clase que esta dentro del horario extendido
+const informeExt = diagnostico();
+comprobar('el diagnostico cuenta los dias extendidos',
+          informeExt.indexOf('Horario extendido de 08:00 a 20:30') !== -1 &&
+          informeExt.indexOf(lunesExt) !== -1,
+          informeExt.split('\n').filter(l => l.indexOf('xtendido') !== -1).join(' | '));
+comprobar('y la clase de las 18:30 no sale como fuera de horario',
+          informeExt.indexOf('fuera del horario') === -1 ||
+          informeExt.indexOf(lunesExt + ' 18:30') === -1,
+          informeExt.split('\n').filter(l => l.indexOf('fuera') !== -1).join(' | '));
+
+// Lo que no vale
+comprobar('una franja al reves se rechaza',
+          guardarHorarioExtendido({ tramo: ['20:30', '08:00'], fechas: [lunesExt] }).ok === false);
+comprobar('y una fecha rota no se cuela',
+          guardarHorarioExtendido({ tramo: ['08:00', '20:30'], fechas: ['ayer', lunesExt] })
+            .horario_extendido.fechas.join(',') === lunesExt);
+
+// Por la puerta de verdad, con y sin clave
+EMAIL_ACTIVO = 'curioso@example.com';
+comprobar('sin clave no se cambia',
+          enrutar_('guardar_horario_extendido', { horario_extendido: { tramo: ['08:00', '20:30'], fechas: [] } })
+            .no_autorizado === true);
+const porApiExt = enrutar_('guardar_horario_extendido',
+  { t: claveDelPanel_(), horario_extendido: { tramo: ['07:30', '21:00'], fechas: [martesExt] } });
+EMAIL_ACTIVO = 'sara@example.com';
+comprobar('con clave si, y la franja puede ser otra',
+          porApiExt.ok === true && porApiExt.horario_extendido.tramo[0] === '07:30' &&
+          porApiExt.horario_extendido.fechas.join(',') === martesExt,
+          JSON.stringify(porApiExt));
+limpiarCache();
+comprobar('y desde ese momento el lunes vuelve a ser normal',
+          ventanasDelDia_(leerHorarioBase_(), lunesExt)[0].hora_inicio === '08:30' &&
+          ventanasDelDia_(leerHorarioBase_(), martesExt)[0].hora_inicio === '07:30');
+
+// Se deja como estaba para las pruebas que vienen
+guardarHorarioExtendido({ tramo: ['08:00', '20:30'], fechas: [] });
+bancoLimpio();
 limpiarCache();
 
 console.log('== La categoria del alumno (B, J...) ==');

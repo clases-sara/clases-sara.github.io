@@ -560,6 +560,10 @@ function datosPanel() {
       duracion_minima: configNum('duracion_minima_minutos', 45),
       traslado: configNum('traslado_minutos', 25),
       horario: leerHorarioEditable(),
+      // Los días sueltos con la jornada alargada, y cuántos días tiene a la vista
+      // para poder elegirlos
+      horario_extendido: leerHorarioExtendido(),
+      dias_vista: diasQueSeOfrecen_(),
       escuelas: listaDeEscuelas(),
       tipos: listaDeTipos(),
       // El generador del parte semanal (proyecto aparte) deja aquí su enlace

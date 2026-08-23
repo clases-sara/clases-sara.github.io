@@ -29,7 +29,7 @@ var TZ            = 'Europe/Madrid';
  *
  * Al tocar el código, subir también esta fecha.
  */
-var VERSION_CODIGO = '2026-08-22';
+var VERSION_CODIGO = '2026-08-23';
 
 var COLS_RESERVAS = ['id', 'creado_en', 'fecha', 'hora_inicio', 'hora_fin', 'estado',
                      'nombre', 'telefono', 'notas', 'actualizado_en',

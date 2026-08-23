@@ -106,7 +106,8 @@ function calcularDisponibilidad_(escuela) {
     var dia     = sumarDias(desde, i);
     var fecha   = Utilities.formatDate(dia, TZ, 'yyyy-MM-dd');
     var diaSem  = diaSemanaIso(dia);
-    var ventanas = horario[diaSem] || [];
+    // Las del día de la semana, o más largas si Sara ha marcado ese día como extendido
+    var ventanas = ventanasDelDia_(horario, fecha);
     if (ventanas.length === 0) continue;
 
     var franjas = ofertasDelDia_(fecha, ventanas, ocupados, reservas, reglas)
@@ -192,7 +193,7 @@ function calcularLibresParaPanel_() {
   for (var i = 0; i < totalDias; i++) {
     var dia      = sumarDias(desde, i);
     var fecha    = Utilities.formatDate(dia, TZ, 'yyyy-MM-dd');
-    var ventanas = horario[diaSemanaIso(dia)] || [];
+    var ventanas = ventanasDelDia_(horario, fecha);
     if (!ventanas.length) continue;
 
     var ocupaciones = ocupacionesDelDia_(fecha, ocupados, reservas[fecha]);
@@ -222,7 +223,10 @@ function calcularLibresParaPanel_() {
 
     var total = 0;
     tramos.forEach(function (t) { total += t.minutos; });
-    dias.push({ fecha: fecha, minutos: total, tramos: tramos });
+    var diaLibre = { fecha: fecha, minutos: total, tramos: tramos };
+    // Que el panel pueda decir por qué ese día tiene más horas de lo normal
+    if (esDiaExtendido_(fecha)) diaLibre.extendido = true;
+    dias.push(diaLibre);
   }
 
   return { dias: dias, examenes: examenesParaPanel_(aDate(hoyISO(), '00:00'), hasta) };
@@ -272,8 +276,19 @@ function esTituloDeExamen_(titulo) {
  * viene entera, en vez de un trozo suelto de tres semanas distintas.
  */
 function diasQueSeOfrecen_() {
-  var diaHoy = diaSemanaIso(ahora());
-  return (7 - diaHoy) + ((configNum('semanas_vista', 2) - 1) * 7) + 1;
+  var diaHoy  = diaSemanaIso(ahora());
+  var semanas = configNum('semanas_vista', 2);
+
+  /*
+   * Una semana más a partir de cierto día. Los exámenes son los miércoles: quien
+   * suspende quiere coger clases de la semana siguiente ese mismo día, no esperar
+   * al lunes a que se abra. Con semana_extra_desde = 4, de jueves a domingo se ve
+   * una semana más que de lunes a miércoles. Vacío o 0 = nunca.
+   */
+  var desde = configNum('semana_extra_desde', 0);
+  if (desde >= 1 && desde <= 7 && diaHoy >= desde) semanas += 1;
+
+  return (7 - diaHoy) + ((semanas - 1) * 7) + 1;
 }
 
 /**
@@ -466,7 +481,7 @@ function crearContexto_(fechas, escuela) {
  * de ellas: así la reserva se valida exactamente contra lo mismo que se ofreció.
  */
 function huecoLibreEn_(ctx, fecha, horaInicio, escuela) {
-  var ventanas = ctx.horario[diaSemanaIso(aDate(fecha, '00:00'))] || [];
+  var ventanas = ventanasDelDia_(ctx.horario, fecha);
   if (!ventanas.length) {
     return { ok: false, error: 'Ese día no hay clases.' };
   }

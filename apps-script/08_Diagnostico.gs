@@ -220,6 +220,13 @@ function revisarHorario_() {
 
   if (!total) lineas.push('  FALTA no hay ninguna franja. Sara no puede recibir reservas.');
 
+  // Los días sueltos en los que Sara alarga la jornada
+  var extendido = leerHorarioExtendido();
+  if (extendido.fechas.length) {
+    lineas.push('  Horario extendido de ' + extendido.tramo[0] + ' a ' + extendido.tramo[1] +
+                ' en: ' + extendido.fechas.join(', '));
+  }
+
   /*
    * Clases activas que caen fuera del horario de ahora.
    *
@@ -235,7 +242,9 @@ function revisarHorario_() {
     var fecha = aFechaISO(fila.fecha);
     if (fecha < hoyISO()) return;
 
-    var ventanas = horario[diaSemanaIso(aDate(fecha, '00:00'))] || [];
+    // Con el horario extendido, si ese día lo tiene: una clase a las 19:00 de un día
+    // alargado está en su sitio
+    var ventanas = ventanasDelDia_(horario, fecha);
     var inicio = enMinutos(aHoraHHMM(fila.hora_inicio));
     var fin    = enMinutos(aHoraHHMM(fila.hora_fin)) || inicio + duracion;
 
@@ -396,7 +405,8 @@ function revisarArchivos_() {
                         'cambiarClaveDelPanel'],
     '06_Escuelas':     ['listaDeEscuelas', 'escuelaValida', 'listaDeTipos',
                         'ubicacionDeEscuela', 'listaDeCategorias', 'marcarCategoria'],
-    '07_Horario':      ['leerHorarioEditable', 'guardarHorario', 'clasesQueCaben_'],
+    '07_Horario':      ['leerHorarioEditable', 'guardarHorario', 'clasesQueCaben_',
+                        'leerHorarioExtendido', 'guardarHorarioExtendido', 'ventanasDelDia_'],
     '08_Diagnostico':  ['diagnostico', 'archivarAntiguas', 'estadoDeSalud'],
     '09_Agenda':       ['sincronizarAgenda', 'sincronizarTodaLaAgenda',
                         'traerCambiosDelCalendario', 'sigueEnElCalendario_', 'sincronizarTodo',

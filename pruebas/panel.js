@@ -542,7 +542,7 @@ comprobar('cada rato libre abre el calendario en ese dia',
           'el rato libre no lleva a ninguna parte');
 
 // Las cuentas, ejecutadas
-const fuenteCuentas = ['enMinutosReloj', 'textoHoras', 'textoDeTrabajo', 'textoDeHueco', 'claseDeEscuela',
+const fuenteCuentas = ['enMinutosReloj', 'textoHoras', 'textoDeTrabajo', 'htmlDeTrabajo', 'textoDeHueco', 'claseDeEscuela',
                        'quienCabe', 'pintarHueco', 'fechaISO', 'fechaDesdeISO', 'lunesDe',
                        'duracionDe', 'escapar', 'diaCorto', 'pintarResumenSemanas']
   .map(extraerFuncion).join('\n\n');
@@ -640,7 +640,13 @@ cuentas.pintarResumenSemanas(
   [],
   [{ fecha: masDias(lunesPrueba, 2), hora_inicio: '09:00', hora_fin: '13:00', titulo: 'Exámenes' }]);
 comprobar('el resumen de la semana suma el examen',
-          pintado.innerHTML.indexOf('5 h 30 de trabajo (4 h examen)') !== -1, pintado.innerHTML);
+          pintado.innerHTML.indexOf('5 h 30 de trabajo <span class="sinpartir">(4 h examen)</span>') !== -1,
+          pintado.innerHTML);
+// En un movil estrecho la linea se parte delante del parentesis, nunca por dentro
+comprobar('y el parentesis del examen no se parte en dos lineas',
+          editor.indexOf('.sinpartir{white-space:nowrap}') !== -1 &&
+          editor.indexOf("'<span class=\"dia-agenda-clases\">' + htmlDeTrabajo(") !== -1,
+          'el "(2 h 45" se queda en una linea y el "examen)" en otra');
 
 console.log('== Sin historial ==');
 comprobar('el panel ya no tiene la seccion de historial',
@@ -871,6 +877,142 @@ cola.colaDeAvisos([
 comprobar('sin movil se juntan por el nombre',
           cola.ver().turnos.length === 1 && cola.ver().turnos[0].reservas.length === 2,
           JSON.stringify(cola.ver().turnos.map(t => t.nombre + ':' + t.reservas.length)));
+
+console.log('== Sin la seccion de mañana ==');
+
+/*
+ * Sara pidio quitar del panel la lista de las clases de mañana y el boton de ir
+ * avisando a los alumnos. Fuera la seccion, fuera el codigo y fuera la plantilla
+ * del recordatorio, que ya no la usaba nadie.
+ */
+const avisosGs = fs.readFileSync(path.join(__dirname, '..', 'apps-script', '04_Avisos.gs'), 'utf8');
+comprobar('el panel ya no tiene la seccion de mañana',
+          html.indexOf('seccion-manana') === -1 && html.indexOf('btn-recordar') === -1 &&
+          html.indexOf('lista-manana') === -1,
+          'sigue la seccion de mañana');
+comprobar('ni el codigo que la pintaba',
+          editor.indexOf('pintarManana') === -1 && editor.indexOf('avanzarRecordatorio') === -1 &&
+          editor.indexOf('refrescarBotonRecordar') === -1 && editor.indexOf('MANANA') === -1,
+          'queda codigo huerfano');
+comprobar('ni la plantilla del recordatorio en el servidor',
+          avisosGs.indexOf('recordatorio') === -1 && editor.indexOf("'recordatorio'") === -1,
+          'queda la plantilla del recordatorio');
+
+console.log('== El parte semanal, plegado ==');
+
+const seccionParte = (html.match(/<section class="seccion" id="seccion-parte"[\s\S]*?<\/section>/) || [''])[0];
+comprobar('la seccion del parte existe', seccionParte.length > 0);
+comprobar('y es un desplegable, no una tarjeta fija',
+          seccionParte.indexOf('<details>') !== -1 && seccionParte.indexOf('<summary>') !== -1 &&
+          seccionParte.indexOf('class="tarjeta"') === -1,
+          'el parte sigue abierto siempre');
+comprobar('con sus tres botones dentro',
+          seccionParte.indexOf('id="btn-parte-actual"') !== -1 &&
+          seccionParte.indexOf('id="btn-parte-pasada"') !== -1 &&
+          seccionParte.indexOf('id="btn-parte-proxima"') !== -1,
+          'falta algun boton del parte');
+
+console.log('== El horario extendido, en dias concretos ==');
+
+/*
+ * Una franja mas larga ("de 08:00 a 20:30") que Sara enciende en dias sueltos desde
+ * el panel. El horario habitual no se toca, y el servidor es el unico que sabe que
+ * ventanas tiene cada dia: disponibilidad, ratos libres y validacion pasan por ahi.
+ */
+const horarioExtGs = fs.readFileSync(path.join(__dirname, '..', 'apps-script', '07_Horario.gs'), 'utf8');
+const dispExtGs = fs.readFileSync(path.join(__dirname, '..', 'apps-script', '02_Disponibilidad.gs'), 'utf8');
+const apiExtGs = fs.readFileSync(path.join(__dirname, '..', 'apps-script', '05_Api.gs'), 'utf8');
+const reservasExtGs = fs.readFileSync(path.join(__dirname, '..', 'apps-script', '03_Reservas.gs'), 'utf8');
+
+comprobar('el servidor guarda la franja y los dias',
+          horarioExtGs.indexOf('function guardarHorarioExtendido') !== -1 &&
+          horarioExtGs.indexOf('function leerHorarioExtendido') !== -1 &&
+          horarioExtGs.indexOf("'horario_extendido'") !== -1,
+          'no hay donde guardarlo');
+comprobar('y las tres puertas preguntan por el mismo sitio',
+          (dispExtGs.match(/ventanasDelDia_\(/g) || []).length === 3 &&
+          dispExtGs.indexOf('horario[diaSem] || []') === -1 &&
+          dispExtGs.indexOf("ctx.horario[diaSemanaIso(aDate(fecha, '00:00'))]") === -1,
+          'alguna parte sigue mirando el horario por dia de la semana');
+comprobar('la accion del panel existe y va con clave',
+          apiExtGs.indexOf("case 'guardar_horario_extendido':") !== -1 &&
+          apiExtGs.indexOf('exigirAdmin_(datos.t) || guardarHorarioExtendido(') !== -1,
+          'la accion no existe o esta abierta');
+comprobar('el panel lo recibe, con los dias que tiene a la vista',
+          reservasExtGs.indexOf('horario_extendido: leerHorarioExtendido()') !== -1 &&
+          reservasExtGs.indexOf('dias_vista: diasQueSeOfrecen_()') !== -1,
+          'el panel no sabe que dias ofrecer');
+comprobar('y lo pinta en su desplegable, con guardado propio',
+          html.indexOf('id="bloque-extendido"') !== -1 &&
+          editor.indexOf('function pintarHorarioExtendido') !== -1 &&
+          editor.indexOf("apiPanel('guardar_horario_extendido'") !== -1,
+          'no hay editor del horario extendido');
+comprobar('si el servidor es mas viejo, el bloque no sale',
+          editor.indexOf("if (!extendido || !extendido.tramo) { bloque.style.display = 'none'; return; }") !== -1,
+          'un servidor viejo dejaria el bloque a medias');
+comprobar('y al guardar se vuelven a pedir los ratos libres',
+          extraerFuncion('guardarHorarioExtendidoPanel').indexOf('cargar(false, true)') !== -1,
+          'la agenda se quedaria vieja');
+
+// Ejecutado: la lista de dias con su casilla
+const fuenteExt = ['fechaISO', 'fechaDesdeISO', 'diaCorto', 'escapar', 'pintarHorarioExtendido']
+  .map(extraerFuncion).join('\n\n');
+const elementosExt = {};
+const elExt = function (id) {
+  if (!elementosExt[id]) elementosExt[id] = { style: {}, value: '', innerHTML: '' };
+  return elementosExt[id];
+};
+const hoyExt = new Date();
+const isoExt = function (n) {
+  const d = new Date(hoyExt.getFullYear(), hoyExt.getMonth(), hoyExt.getDate() + n);
+  return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+};
+// El sabado mas cercano, para ver el aviso de "cerrado de normal"
+let saltoSabado = 0;
+while (new Date(hoyExt.getFullYear(), hoyExt.getMonth(), hoyExt.getDate() + saltoSabado).getDay() !== 6) saltoSabado++;
+
+const ESTADO_EXT = { datos: { config: { horario: { dias: {
+  1: { activo: true }, 2: { activo: true }, 3: { activo: true }, 4: { activo: true }, 5: { activo: true },
+  6: { activo: false }, 7: { activo: false } } } } } };
+const pintaExt = new Function('ESTADO', 'el', 'EXTENDIDO', 'DIAS_CORTOS', 'MESES_CORTOS',
+  fuenteExt + '\nreturn { pintar: pintarHorarioExtendido, ver: function () { return EXTENDIDO; } };'
+)(ESTADO_EXT, elExt, { fechas: [] },
+  ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'],
+  ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']);
+
+pintaExt.pintar({ tramo: ['08:00', '20:30'], fechas: [isoExt(2)] }, 10);
+const listaExt = elementosExt['dias-extendidos'].innerHTML;
+comprobar('sale una casilla por dia a la vista',
+          (listaExt.match(/type="checkbox"/g) || []).length === 10,
+          (listaExt.match(/type="checkbox"/g) || []).length + ' casillas');
+comprobar('el dia guardado viene marcado',
+          listaExt.indexOf('id="ext-' + isoExt(2) + '" checked') !== -1 &&
+          listaExt.indexOf('id="ext-' + isoExt(3) + '" checked') === -1,
+          'no respeta lo guardado');
+comprobar('el primero es hoy y el segundo mañana',
+          listaExt.indexOf('>hoy<') !== -1 && listaExt.indexOf('>mañana<') !== -1,
+          'los dias no se nombran');
+comprobar('los dias que de normal no trabaja lo dicen',
+          saltoSabado < 10 ? listaExt.indexOf('cerrado de normal') !== -1 : true,
+          'un sabado no avisa de que es sabado');
+comprobar('la franja sale en sus campos',
+          elementosExt['ext-desde'].value === '08:00' && elementosExt['ext-hasta'].value === '20:30');
+comprobar('y el bloque se enseña',
+          elementosExt['bloque-extendido'].style.display === 'block');
+
+pintaExt.pintar(null, 10);
+comprobar('sin datos del servidor, el bloque se esconde',
+          elementosExt['bloque-extendido'].style.display === 'none');
+
+console.log('== Una semana mas a partir del jueves ==');
+
+const instalarGs = fs.readFileSync(path.join(__dirname, '..', 'apps-script', '01_Instalar.gs'), 'utf8');
+comprobar('la regla vive en Config y el instalador la explica',
+          dispExtGs.indexOf("configNum('semana_extra_desde', 0)") !== -1 &&
+          instalarGs.indexOf("'semana_extra_desde'") !== -1,
+          'la semana extra no se puede configurar');
+comprobar('y la guia dice como activarla',
+          guia.indexOf('semana_extra_desde') !== -1, 'la guia no lo cuenta');
 
 console.log('\n' + (fallos === 0
   ? 'TODO CORRECTO — el panel, la guía y la revisión están al día'

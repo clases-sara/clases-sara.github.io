@@ -103,10 +103,7 @@ function plantillasWhatsApp() {
     rechazada_una:  'No voy a poder darte la clase de {clases}{motivo}\nPuedes elegir otra hora aquí:\n{enlace}',
 
     cancelada:      'He tenido que anular estas clases:\n{clases}{motivo}\nPuedes elegir otras aquí:\n{enlace}',
-    cancelada_una:  'He tenido que anular la clase de {clases}{motivo}\nPuedes elegir otra hora aquí:\n{enlace}',
-
-    recordatorio:     'Te recuerdo tus próximas clases:\n{clases}\n¡Nos vemos!',
-    recordatorio_una: 'Te recuerdo tu clase de {clases}. ¡Nos vemos!'
+    cancelada_una:  'He tenido que anular la clase de {clases}{motivo}\nPuedes elegir otra hora aquí:\n{enlace}'
   };
 }
 

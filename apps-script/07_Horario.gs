@@ -136,3 +136,107 @@ function escribirHorarioBase_(tramos) {
 function clonar_(objeto) {
   return JSON.parse(JSON.stringify(objeto));
 }
+
+// --- Horario extendido: días sueltos en los que Sara alarga la jornada ----------
+
+/*
+ * Hay semanas en las que Sara quiere meter más clases: empezar a las ocho y acabar
+ * a las ocho y media de la tarde. No es su horario de siempre, y cambiar el habitual
+ * para volver a cambiarlo después es un lío. Así que el horario extendido es una
+ * franja ("de 08:00 a 20:30") que ella enciende en días concretos desde el panel.
+ *
+ * En un día marcado la jornada se estira por los dos lados: empieza a la hora del
+ * extendido y acaba a su hora, y el descanso del mediodía que tenga ese día de la
+ * semana se respeta. Si es un día que normalmente no trabaja, vale la franja entera.
+ *
+ * Se guarda en Config como 'horario_extendido' y no toca HorarioBase: los días
+ * marcados son excepciones, no reglas.
+ */
+var HORARIO_EXTENDIDO_POR_DEFECTO = { tramo: ['08:00', '20:30'], fechas: [] };
+
+// Se lee varias veces por petición (una por día ofrecido); con una vale
+var _extendido = null;
+
+/** { tramo: ['08:00', '20:30'], fechas: ['2026-08-25', …] }, solo fechas de hoy en adelante. */
+function leerHorarioExtendido() {
+  if (_extendido) return clonar_(_extendido);
+
+  var leido = null;
+  var guardado = config('horario_extendido', '');
+  if (guardado) {
+    try { leido = JSON.parse(guardado); } catch (e) { leido = null; }
+  }
+
+  var tramo = normalizarTramo_(leido && leido.tramo) || HORARIO_EXTENDIDO_POR_DEFECTO.tramo.slice();
+  var hoy = hoyISO();
+  var fechas = fechasLimpias_(leido && leido.fechas).filter(function (f) { return f >= hoy; });
+
+  _extendido = { tramo: tramo, fechas: fechas };
+  return clonar_(_extendido);
+}
+
+/**
+ * Guarda la franja y los días en los que se aplica. Las fechas pasadas se tiran:
+ * no sirven para nada y la lista crecería sin parar.
+ */
+function guardarHorarioExtendido(nuevo) {
+  var tramo = normalizarTramo_(nuevo && nuevo.tramo);
+  if (!tramo) {
+    return { ok: false, error: 'Revisa las horas: la de fin tiene que ir después de la de inicio.' };
+  }
+
+  var hoy = hoyISO();
+  var fechas = fechasLimpias_(nuevo && nuevo.fechas).filter(function (f) { return f >= hoy; });
+
+  var limpio = { tramo: tramo, fechas: fechas };
+  setConfig('horario_extendido', JSON.stringify(limpio));
+  _extendido = null;
+  olvidarDisponibilidad();
+
+  return { ok: true, horario_extendido: limpio };
+}
+
+/** Fechas 'YYYY-MM-DD' válidas, sin repetidas y en orden. */
+function fechasLimpias_(lista) {
+  var vistas = {};
+  var salida = [];
+  [].concat(lista || []).forEach(function (f) {
+    var fecha = aFechaISO(f);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha) || vistas[fecha]) return;
+    vistas[fecha] = true;
+    salida.push(fecha);
+  });
+  return salida.sort();
+}
+
+/**
+ * Las ventanas de trabajo de un día concreto: las de ese día de la semana, estiradas
+ * si es un día con horario extendido.
+ *
+ * Es la única puerta por la que la disponibilidad, los ratos libres del panel y la
+ * validación de una reserva preguntan "¿a qué horas trabaja Sara tal día?". Así los
+ * tres ven lo mismo.
+ */
+function ventanasDelDia_(horario, fecha) {
+  var base = horario[diaSemanaIso(aDate(fecha, '00:00'))] || [];
+  var extendido = leerHorarioExtendido();
+  if (extendido.fechas.indexOf(fecha) === -1) return base;
+
+  var inicio = extendido.tramo[0];
+  var fin    = extendido.tramo[1];
+  if (!base.length) return [{ hora_inicio: inicio, hora_fin: fin }];
+
+  var ventanas = base.map(function (v) {
+    return { hora_inicio: v.hora_inicio, hora_fin: v.hora_fin };
+  });
+  var primera = ventanas[0];
+  var ultima  = ventanas[ventanas.length - 1];
+  if (enMinutos(inicio) < enMinutos(primera.hora_inicio)) primera.hora_inicio = inicio;
+  if (enMinutos(fin) > enMinutos(ultima.hora_fin)) ultima.hora_fin = fin;
+  return ventanas;
+}
+
+/** ¿Es un día con la jornada alargada? Para que el panel lo señale. */
+function esDiaExtendido_(fecha) {
+  return leerHorarioExtendido().fechas.indexOf(fecha) !== -1;
+}

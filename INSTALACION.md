@@ -238,6 +238,17 @@ añadir otro.
 Sara por WhatsApp desde su propia pestaña *Mis clases*. Sara pulsa la **✕** en la tarjeta
 de ese alumno dentro de *Próximas clases* y la hora vuelve a quedar libre al momento.
 
+**Las semanas con más clases.** En *Tu disponibilidad* → **Horario extendido, en días
+concretos**, Sara tiene una franja más larga (de serie, de 08:00 a 20:30) y una casilla
+por cada día que tiene a la vista. Marca los días en los que quiere alargar la jornada y
+guarda: ese día empieza y acaba a esas horas, el descanso del mediodía se mantiene, y
+las horas nuevas se ofrecen a los alumnos al momento. Un sábado marcado es un sábado de
+trabajo con la franja entera. Su horario de siempre no cambia, y los días pasados se
+olvidan solos.
+
+**El parte semanal.** Va plegado, debajo de la disponibilidad: se despliega, y ahí
+están los botones de esta semana, la pasada y la que viene.
+
 **Nada más.** No tiene que abrir horas una por una: su horario habitual sale libre solo.
 
 ---
@@ -251,6 +262,8 @@ de ese alumno dentro de *Próximas clases* y la hora vuelve a quedar libre al mo
 | Añadir un tramo nuevo | Fila nueva en `HorarioBase`: día (1=lunes), hora inicio, hora fin, `SI` |
 | Cambiar la antelación mínima | `antelacion_minima_horas` en `Config`, o desde Ajustes del panel |
 | Mostrar más semanas | `semanas_vista` en `Config` |
+| Abrir una semana más a partir de un día | `semana_extra_desde` en `Config`: `4` = de jueves a domingo se ve una semana más que de lunes a miércoles. Para que quien suspende el miércoles pueda coger la semana siguiente ese mismo día. Vacío = nunca |
+| Alargar la jornada unos días sueltos | Panel de Sara → Tu disponibilidad → **Horario extendido, en días concretos** |
 | Cambiar el descanso entre clases | `separacion_minima_minutos` en `Config`. 0 las permite pegadas |
 | Sacar las comisiones del mes | Hoja `Reservas`, columnas `tipo` (campo o calle) y `escuela` |
 | Añadir una autoescuela | `autoescuelas` en `Config`, separadas por punto y coma. Su enlace aparece solo en el panel |
